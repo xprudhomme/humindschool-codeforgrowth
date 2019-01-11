@@ -1,8 +1,13 @@
-const startupsList  = require("./startupsList");
+const startupsList  = require("./data/startupsList");
 
 const puppeteer = require('puppeteer');
+const Papa = require('papaparse');
+
 const xpaths = require('./xpaths');
 const fileUtils = require('./lib/fileUtils');
+
+const argv = require('minimist')(process.argv.slice(2));
+const headless = argv.hasOwnProperty("headless") ? ((argv.headless=="true" || argv.headless=="TRUE" || argv.headless===1)? true:false) : true;
 
 let page = null;
 let browser = null;
@@ -195,6 +200,8 @@ async function openStartupPageAndExtractData(startupUrl) {
     return results;
 }
 
+
+
 function launchBrowser() {
     return puppeteer.launch({
         headless: true,
@@ -214,7 +221,13 @@ async function extractStartupsListData(startupsList) {
         allStartupData.push(startupData);
     }
     
-    await fileUtils.saveToJSONFile(allStartupData, '/tmp/allStartupData.json');
+    // Convert startups JSON data to CSV string
+    let csvData = Papa.unparse(allStartupData);
+
+    // Save startups CSV string to CSV file
+    await fileUtils.saveCSVToFile(allStartupData, '/tmp/allstartups.csv');
+
+    await fileUtils.saveToJSONFile(allStartupData, '/tmp/partialStartupData.json');
 }
 
 async function extractStartupURLsList() {
@@ -242,7 +255,7 @@ async function extractStartupURLsList() {
 
     browser = await launchBrowser();
 
-    await extractStartupsListData(startupsList);
+    await extractStartupsListData(startupsList.slice(0, 50));
     //await extractStartupURLsList();
     
     await browser.close();
