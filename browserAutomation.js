@@ -197,7 +197,7 @@ async function openStartupPageAndExtractData(startupUrl) {
 
 function launchBrowser() {
     return puppeteer.launch({
-        headless: false,
+        headless: true,
         defaultViewport: {
             width: 1200,
             height: 1800
