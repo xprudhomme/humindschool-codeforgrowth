@@ -1,0 +1,25 @@
+{
+  "name": "humindschool-codeforgrowth",
+  "version": "1.0.0",
+  "description": "",
+  "main": "browserAutomation.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xprudhomme/humindschool-codeforgrowth.git"
+  },
+  "author": "Xavier Prud'homme",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/xprudhomme/humindschool-codeforgrowth/issues"
+  },
+  "homepage": "https://github.com/xprudhomme/humindschool-codeforgrowth#readme",
+  "dependencies": {
+    "minimist": "^1.2.0"
+  }
+}
