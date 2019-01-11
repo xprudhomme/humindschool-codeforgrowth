@@ -20,6 +20,8 @@
   },
   "homepage": "https://github.com/xprudhomme/humindschool-codeforgrowth#readme",
   "dependencies": {
-    "minimist": "^1.2.0"
+    "minimist": "^1.2.0",
+    "papaparse": "^4.6.3",
+    "puppeteer": "^1.11.0"
   }
 }
