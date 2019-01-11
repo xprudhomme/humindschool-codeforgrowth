@@ -1,6 +1,15 @@
 const puppeteer = require('puppeteer');
+const argv = require('minimist')(process.argv.slice(2));
+
 const xpaths = require('./xpaths');
 const fileUtils = require('./lib/fileUtils');
+
+let outputFile = argv.hasOwnProperty("out") ? argv.out : null;
+
+if(!outputFile){
+    console.log(` Error: --out parameter must be a valid path: ${outputFile}`);
+    process.exit();
+}
 
 let browser = null;
 let page = null;
@@ -230,7 +239,7 @@ let annuaireUrl = 'https://www.usine-digitale.fr/annuaire-start-up/';
 
 (async () => {
     browser = await puppeteer.launch({
-        headless: false,
+        headless: true,
         defaultViewport: {
             width: 1200,
             height: 2200
@@ -244,7 +253,8 @@ let annuaireUrl = 'https://www.usine-digitale.fr/annuaire-start-up/';
     await evaluateXPathFunctions();
 
     // Wait for f*cking dialog notification and accept it
-    await waitForAndClick('.pushcrew-btn-allow');
+    //await waitForAndClick('.pushcrew-btn-allow');
+    await page.waitForXPath("//a[@rel='next']");
 
     let counter = 1;
     let nextPageButtonExists = false;
@@ -260,12 +270,13 @@ let annuaireUrl = 'https://www.usine-digitale.fr/annuaire-start-up/';
         // Add all current page's startups urls to our main startups URLs list
         allStartupsURLs.push(...urlsList);
 
+        let allFinalStartupURLs = 
+            allStartupsURLs.map( url => `https://www.usine-digitale.fr${url}`);
+
+        await fileUtils.saveToJSONFile(allFinalStartupURLs, outputFile);
+
         nextPageButtonExists = await elementExists("//a[@rel='next']");
         tensButtonExists = await elementExists("//div[contains(@class, 'isNoMobile')]/ul[@class='pagination']/li[1]/a");
-
-        if(counter>15) {
-            break;
-        }
 
         if(nextPageButtonExists) {
 
@@ -285,10 +296,6 @@ let annuaireUrl = 'https://www.usine-digitale.fr/annuaire-start-up/';
 
     } while(nextPageButtonExists || tensButtonExists);
 
-    let allFinalStartupURLs = 
-        allStartupsURLs.map( url => `https://www.usine-digitale.fr${url}`);
-
-    await fileUtils.saveToJSONFile(allFinalStartupURLs, '/tmp/allStartupsURLs.json');
     
-    //await browser.close();
+    await browser.close();
 })();
