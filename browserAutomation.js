@@ -1,13 +1,25 @@
-const startupsList  = require("./data/startupsList");
+//const startupsList  = require("./data/startupsList");
 
+const argv = require('minimist')(process.argv.slice(2));
 const puppeteer = require('puppeteer');
 const Papa = require('papaparse');
+const fs = require('fs');
 
 const xpaths = require('./xpaths');
 const fileUtils = require('./lib/fileUtils');
 
-const argv = require('minimist')(process.argv.slice(2));
 const headless = argv.hasOwnProperty("headless") ? ((argv.headless=="true" || argv.headless=="TRUE" || argv.headless===1)? true:false) : true;
+
+let inputJSONFile = argv.hasOwnProperty("in") ? argv.in : null;
+let outputCSVFile = argv.hasOwnProperty("out") ? argv.out : null;
+
+if(!inputJSONFile || !fs.existsSync(inputJSONFile)){
+    console.log(` Error: --in parameter must be a valid JSON file: ${inputJSONFile}`);
+    process.exit();
+}
+
+const jsonString = fs.readFileSync(inputJSONFile);
+const startupsList = JSON.parse(jsonString);
 
 let page = null;
 let browser = null;
@@ -173,24 +185,41 @@ function extractTextFromXPath(xpath) {
     }, xpath);
 }
 
+function extractTextsFromXPath(xpath) {
+    return page.evaluate( (xpath) => {
+        return window.__utils.getElemTexts(xpath);
+    }, xpath);
+}
+
 async function openStartupPageAndExtractData(startupUrl) {
 
     console.log(` Treating current page: ${startupUrl}`);
     page = await browser.newPage();
     await page.goto(startupUrl);
-    await page.waitFor(4000);
+    await page.waitFor(2500);
     await evaluateXPathFunctions();
     
     let email = await extractTextFromXPath(xpaths.email);
     let website = await extractTextFromXPath(xpaths.website);
     let phone = await extractTextFromXPath(xpaths.phone);
     let name = await extractTextFromXPath(xpaths.name);
+    let creationDate = await extractTextFromXPath(xpaths.creationDate);
+    let founders = await extractTextsFromXPath(xpaths.founders);
+    let markets = await extractTextsFromXPath(xpaths.markets);
+    let addressParts = await extractTextsFromXPath(xpaths.address);
+    let employees = await extractTextFromXPath(xpaths.employees);
    
     const results = {
+        startupUrl,
         name,
         email,
         website,
-        phone
+        phone,
+        creationDate,
+        founders,
+        markets,
+        employees,
+        addressParts
     };
 
     console.log(`Startup data is: ${JSON.stringify(results, null, 2)}`);
@@ -212,20 +241,45 @@ function launchBrowser() {
     });
 }
 
+async function saveToCSV(allStartupData) {
+        // Convert startups JSON data to CSV string
+        let csvData = Papa.unparse(allStartupData);
+
+        // Save startups CSV string to CSV file
+        await fileUtils.saveCSVToFile(csvData, outputCSVFile);
+}
+
 async function extractStartupsListData(startupsList) {
 
+    let counter=1;
     let allStartupData = [];
 
     for(let startupUrl of startupsList) {
-        let startupData = await openStartupPageAndExtractData(startupUrl);
-        allStartupData.push(startupData);
+
+        console.log(` Dealing with page n°${counter++}/${startupsList.length}: `);
+        
+        let {founders,
+            markets,
+            addressParts,
+            ...startupData} 
+            = await openStartupPageAndExtractData(startupUrl);
+        
+        let addressLastLine = addressParts.pop();
+        let [, zipcode, city] = addressLastLine.match(/(\d{5})\s(.+)/i);
+
+        allStartupData.push({
+            ...startupData,
+            address: addressParts.shift(),
+            city,
+            zipcode,
+            founders: founders.join(", "),
+            markets: markets.join(", ")
+        });
+
+        await saveToCSV(allStartupData);
     }
     
-    // Convert startups JSON data to CSV string
-    let csvData = Papa.unparse(allStartupData);
 
-    // Save startups CSV string to CSV file
-    await fileUtils.saveCSVToFile(allStartupData, '/tmp/allstartups.csv');
 
     await fileUtils.saveToJSONFile(allStartupData, '/tmp/partialStartupData.json');
 }
@@ -255,8 +309,7 @@ async function extractStartupURLsList() {
 
     browser = await launchBrowser();
 
-    await extractStartupsListData(startupsList.slice(0, 50));
-    //await extractStartupURLsList();
+    await extractStartupsListData(startupsList);
     
     await browser.close();
 })();
